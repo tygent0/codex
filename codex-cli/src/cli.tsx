@@ -112,6 +112,7 @@ const cli = meow(
     -f, --full-context         Launch in "full-context" mode which loads the entire repository
                                into context and applies a batch of edits in one go. Incompatible
                                with all other flags, except for --model.
+    --tygent                  Enable experimental Tygent acceleration
 
   Examples
     $ codex "Write and run a python program that prints ASCII art"
@@ -187,6 +188,10 @@ const cli = meow(
         description:
           "Disable truncation of command stdout/stderr messages (show everything)",
         aliases: ["no-truncate"],
+      },
+      tygent: {
+        type: "boolean",
+        description: "Enable experimental Tygent acceleration",
       },
       reasoning: {
         type: "string",
@@ -571,6 +576,7 @@ if (cli.flags.quiet) {
     approvalPolicy: quietApprovalPolicy,
     additionalWritableRoots,
     config,
+    tygent: Boolean(cli.flags.tygent),
   });
   onExit();
   process.exit(0);
@@ -605,6 +611,7 @@ const instance = render(
     approvalPolicy={approvalPolicy}
     additionalWritableRoots={additionalWritableRoots}
     fullStdout={Boolean(cli.flags.fullStdout)}
+    useTygent={Boolean(cli.flags.tygent)}
   />,
   {
     patchConsole: process.env["DEBUG"] ? false : true,
@@ -667,12 +674,14 @@ async function runQuietMode({
   approvalPolicy,
   additionalWritableRoots,
   config,
+  tygent = false,
 }: {
   prompt: string;
   imagePaths: Array<string>;
   approvalPolicy: ApprovalPolicy;
   additionalWritableRoots: ReadonlyArray<string>;
   config: AppConfig;
+  tygent?: boolean;
 }): Promise<void> {
   const agent = new AgentLoop({
     model: config.model,
@@ -705,7 +714,12 @@ async function runQuietMode({
   });
 
   const inputItem = await createInputItem(prompt, imagePaths);
-  await agent.run([inputItem]);
+  let run = agent.run.bind(agent);
+  if (tygent) {
+    const { accelerate } = await import("tygent");
+    run = accelerate(run);
+  }
+  await run([inputItem]);
 }
 
 const exit = () => {
