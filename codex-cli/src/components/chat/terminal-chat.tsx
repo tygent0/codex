@@ -40,6 +40,7 @@ import fs from "fs/promises";
 import { Box, Text } from "ink";
 import { spawn } from "node:child_process";
 import React, { useEffect, useMemo, useRef, useState } from "react";
+import { accelerate } from "tygent";
 import { inspect } from "util";
 
 export type OverlayModeType =
@@ -58,6 +59,7 @@ type Props = {
   approvalPolicy: ApprovalPolicy;
   additionalWritableRoots: ReadonlyArray<string>;
   fullStdout: boolean;
+  useTygent?: boolean;
 };
 
 const colorsByPolicy: Record<ApprovalPolicy, ColorName | undefined> = {
@@ -143,6 +145,7 @@ export default function TerminalChat({
   approvalPolicy: initialApprovalPolicy,
   additionalWritableRoots,
   fullStdout,
+  useTygent,
 }: Props): React.ReactElement {
   const notify = Boolean(config.notify);
   const [model, setModel] = useState<string>(config.model);
@@ -303,6 +306,12 @@ export default function TerminalChat({
         return { review, customDenyMessage, applyPatch };
       },
     });
+
+    if (useTygent) {
+      agentRef.current.run = accelerate(
+        agentRef.current.run.bind(agentRef.current),
+      );
+    }
 
     // Force a render so JSX below can "see" the freshly created agent.
     forceUpdate();
