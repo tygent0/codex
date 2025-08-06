@@ -99,6 +99,9 @@ importers:
       to-rotated:
         specifier: ^1.0.0
         version: 1.0.0
+      tygent:
+        specifier: ^0.3.0
+        version: 0.3.0(ws@8.18.1)(zod@3.24.3)
       use-interval:
         specifier: 1.4.0
         version: 1.4.0(react@18.3.1)
@@ -2461,6 +2464,9 @@ packages:
 
   tsconfig-paths@3.15.0:
     resolution: {integrity: sha512-2Ac2RgzDe/cn48GvOe3M+o82pEFewD3UPbyoUHHdKasHwJKjds4fLXWf/Ux5kATBKN20oaFGu+jbElp1pos0mg==}
+
+  tygent@0.3.0:
+    resolution: {integrity: sha512-9OHSvKnQffGoIkpwY6tHk5H8JvTdmx4F89GwC1royaXt4X68sjPZRXBe/hCkVEfO74+VJvN2ayHNyV7Wr8XOwA==}
 
   type-check@0.4.0:
     resolution: {integrity: sha512-XleUoc9uwGXqjWwXaUTZAmzMcFZ5858QA2vvx1Ur5xIcixXIP+8LnFDgRplU30us6teqdlskFfu+ae4K79Ooew==}
@@ -5157,6 +5163,14 @@ snapshots:
       json5: 1.0.2
       minimist: 1.2.8
       strip-bom: 3.0.0
+
+  tygent@0.3.0(ws@8.18.1)(zod@3.24.3):
+    dependencies:
+      openai: 4.95.1(ws@8.18.1)(zod@3.24.3)
+    transitivePeerDependencies:
+      - encoding
+      - ws
+      - zod
 
   type-check@0.4.0:
     dependencies:

@@ -36,6 +36,9 @@ import { spawnSync } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import OpenAI, { APIConnectionTimeoutError, AzureOpenAI } from "openai";
 import os from "os";
+import { DAG, ToolNode, Scheduler } from "tygent";
+
+type LocalShellCallItem = { id: string; type: string };
 
 // Wait time before retrying after rate limit errors (ms).
 const RATE_LIMIT_RETRY_WAIT_MS = parseInt(
@@ -1571,28 +1574,42 @@ export class AgentLoop {
       return [];
     }
     const turnInput: Array<ResponseInputItem> = [];
+    const dag = new DAG("process_events");
+
     for (const item of output) {
       if (item.type === "function_call") {
-        if (alreadyProcessedResponses.has(item.id)) {
+        if (alreadyProcessedResponses.has(item.id!)) {
           continue;
         }
-        alreadyProcessedResponses.add(item.id);
-        // eslint-disable-next-line no-await-in-loop
-        const result = await this.handleFunctionCall(item);
-        turnInput.push(...result);
-        //@ts-expect-error - waiting on sdk
-      } else if (item.type === "local_shell_call") {
-        //@ts-expect-error - waiting on sdk
-        if (alreadyProcessedResponses.has(item.id)) {
+        alreadyProcessedResponses.add(item.id!);
+        dag.addNode(
+          new ToolNode(item.id!, async () => {
+            const result = await this.handleFunctionCall(item);
+            turnInput.push(...result);
+            emitItem(item as ResponseItem);
+          }),
+        );
+      } else if ((item as LocalShellCallItem).type === "local_shell_call") {
+        const shellItem = item as LocalShellCallItem;
+        if (alreadyProcessedResponses.has(shellItem.id)) {
           continue;
         }
-        //@ts-expect-error - waiting on sdk
-        alreadyProcessedResponses.add(item.id);
-        // eslint-disable-next-line no-await-in-loop
-        const result = await this.handleLocalShellCall(item);
-        turnInput.push(...result);
+        alreadyProcessedResponses.add(shellItem.id);
+        dag.addNode(
+          new ToolNode(shellItem.id, async () => {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const result = await this.handleLocalShellCall(shellItem as any);
+            turnInput.push(...result);
+            emitItem(item as ResponseItem);
+          }),
+        );
+      } else {
+        emitItem(item as ResponseItem);
       }
-      emitItem(item as ResponseItem);
+    }
+    if (dag.getAllNodes().length > 0) {
+      const scheduler = new Scheduler(dag);
+      await scheduler.executeParallel();
     }
     return turnInput;
   }
